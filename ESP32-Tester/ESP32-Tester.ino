@@ -8,9 +8,12 @@
 const char* ssid = "ESP32tester";
 const char* password = "ESP32tester";
 
+#define BUTTON_PIN_1 15  // Volné tlačítko
+#define BUTTON_PIN_2 14  // Tlačítko default IP
+
 // Ethernet statická IP konfigurace
 IPAddress local_IP;
-IPAddress gateway(192, 168, 1, 1);    // Brána 
+IPAddress gateway(10, 0, 0, 1);    // Brána 
 IPAddress subnet(255, 255, 255, 0);   // Maska podsítě
 
 Preferences preferences;
@@ -123,9 +126,13 @@ void setup() {
   Serial.begin(115200);
   Serial.println("Starting...");
 
+  // Nastavení pinů 15 a 14 jako vstup s interním pull-up rezistorem
+  pinMode(BUTTON_PIN_1, INPUT_PULLUP);
+  pinMode(BUTTON_PIN_2, INPUT_PULLUP); 
+
   // Načtení uložené IP adresy
   preferences.begin("eth-config", true);
-  String savedIP = preferences.getString("ip", "192.168.1.2");
+  String savedIP = preferences.getString("ip", "10.0.0.10");
   preferences.end();
   local_IP.fromString(savedIP);
 
@@ -149,4 +156,30 @@ void setup() {
 void loop() {
   // Zpracování klientů webového serveru
   server.handleClient();
+
+  // Zkontrolujeme, jestli je tlačítko stisknuto
+  if (digitalRead(BUTTON_PIN_2) == LOW) {
+    // Pokud je tlačítko stisknuto, nastavíme IP adresu na 10.0.0.10
+    local_IP.fromString("10.0.0.10");
+
+    // Uložíme novou IP adresu do NVS
+    preferences.begin("eth-config", false);
+    preferences.putString("ip", local_IP.toString());
+    preferences.end();
+
+    // Restartujeme Ethernet s novou IP adresou
+    ETH.config(local_IP, gateway, subnet);
+    Serial.println("IP Address set to default");
+
+    // Krátká prodleva, aby se zpráva nevypsala příliš rychle
+    delay(500);
+  }
+
+  // Zkontrolujeme, jestli je tlačítko stisknuto
+  if (digitalRead(BUTTON_PIN_1) == LOW) {
+    Serial.println("Zmáčknuto tlačítko 1");
+
+    // Krátká prodleva, aby se zpráva nevypsala příliš rychle
+    delay(500);
+  }
 }
